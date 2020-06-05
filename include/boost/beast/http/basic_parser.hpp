@@ -91,6 +91,9 @@ class basic_parser
     // Consume input buffers across semantic boundaries
     static unsigned constexpr flagEager                 = 1<<  1;
 
+    // rfc 2616 4.4: w/ transfer-encoding chunked: ignore content-length
+    static unsigned constexpr flagIgnoreBadContentLength = 1<<  14;
+
     // The parser has read at least one byte
     static unsigned constexpr flagGotSome               = 1<<  2;
 
@@ -347,6 +350,48 @@ public:
             f_ |= flagEager;
         else
             f_ &= ~flagEager;
+    }
+
+    /// Returns `true` if we're to ignore content-length when transfer-encoding set.
+    bool
+    ignore_bad_content_length() const
+    {
+        return (f_ & flagIgnoreBadContentLength) != 0;
+    }
+
+    /** Set the ignore bad content length parse option.
+
+        Normally the parser returns an error if both transfer-encoding:
+        chunked and content-length are set.  This is the defined behavior
+        in RFC 7230 3.3.3.  An older definition of HTTP/1.1 is in RFC
+        2616, and there, in 4.4, it is instead defined that servers should
+        *ignore* content-length if transfer-encoding: chunked is sent.
+
+        The excuse in RFC 7230 is to prevent "request smuggling", and
+        it cites a paper, no longer available in its original location,
+        that describes how this works.  Based on extant references,
+        this appears to have described an attack based on proxy servers
+        attempting to enforce access restrictions but not sharing the
+        same understanding of transfer-encoding/content-length as the
+        backend server.
+
+        It turns out that there exist bad s3 client implementations that
+        set content-length when they should not.  This setting allows
+        those clients to work.  This should only be be set by sites that
+        understand the issues of request smuggling and are not depending
+        on proxy servers enforcing access restrictions.
+
+        The default setting is `false`.
+
+        @param v `true` to accept the consequences or `false` to disable it.
+    */
+    void
+    ignore_bad_content_length(bool v)
+    {
+        if(v)
+            f_ |= flagIgnoreBadContentLength;
+        else
+            f_ &= ~flagIgnoreBadContentLength;
     }
 
     /// Returns `true` if the skip parse option is set.

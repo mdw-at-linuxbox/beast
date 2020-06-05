@@ -441,6 +441,16 @@ finish_header(error_code& ec, std::true_type)
     // RFC 7230 section 3.3
     // https://tools.ietf.org/html/rfc7230#section-3.3
 
+    if((f_ & (flagContentLength | flagChunked))
+            == (flagContentLength | flagChunked)) {
+        if (ignore_bad_content_length()) {
+            f_ &= ~flagContentLength;
+        } else {
+            ec = error::bad_content_length;
+            return;
+        }
+    }
+
     if(f_ & flagSkipBody)
     {
         state_ = state::complete;
@@ -465,6 +475,7 @@ finish_header(error_code& ec, std::true_type)
     else if(f_ & flagChunked)
     {
         f_ |= flagHasBody;
+        len_ = 0;
         state_ = state::chunk_header0;
     }
     else
@@ -795,10 +806,6 @@ do_field(field f,
             ec = error::bad_content_length;
         };
 
-        // conflicting field
-        if(f_ & flagChunked)
-            return bad_content_length();
-
         // Content-length may be a comma-separated list of integers
         auto tokens_unprocessed = 1 +
             std::count(value.begin(), value.end(), ',');
@@ -846,12 +853,6 @@ do_field(field f,
             return;
         }
 
-        if(f_ & flagContentLength)
-        {
-            // conflicting field
-            ec = error::bad_transfer_encoding;
-            return;
-        }
 
         ec = {};
         auto const v = token_list{value};
