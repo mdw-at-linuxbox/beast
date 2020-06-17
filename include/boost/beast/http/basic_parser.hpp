@@ -187,6 +187,9 @@ class basic_parser
     // rfc 2616 4.4: w/ transfer-encoding chunked: ignore content-length
     static unsigned constexpr flagIgnoreBadContentLength = 1<<  14;
 
+    // boto2 emits chunk headers containing a single ';' (but no field).
+    static unsigned constexpr flagAcceptBoto2ChunkHeaders = 1<<  15;
+
     // The parser has read at least one byte
     static unsigned constexpr flagGotSome               = 1<<  2;
 
@@ -506,6 +509,35 @@ public:
             f_ |= flagIgnoreBadContentLength;
         else
             f_ &= ~flagIgnoreBadContentLength;
+    }
+
+    /// Returns `true` if we're to accept boto2's weird chunk header.
+    bool
+    accept_boto2_chunk_headers() const
+    {
+        return (f_ & flagAcceptBoto2ChunkHeaders) != 0;
+    }
+
+    /** Set the accept boto2 headers option.
+
+        Boto2 emits chunk headers consisting of a hexadecimal byte
+        count followed by a single ';'.  If present, the ';' ought
+        to be followed by a fieldname and an optional value, but
+        boto2 doesn't do that, and this behavior is unlikely to be fixed.
+        Here is a workaround allowing applications to choose to
+        accept that bad header.
+
+        The default setting is `false`.
+
+        @param v `true` to accept boto2 chunk headers, or `false` to disable it.
+    */
+    void
+    accept_boto2_chunk_headers(bool v)
+    {
+        if(v)
+            f_ |= flagAcceptBoto2ChunkHeaders;
+        else
+            f_ &= ~flagAcceptBoto2ChunkHeaders;
     }
 
     /// Returns `true` if the skip parse option is set.
