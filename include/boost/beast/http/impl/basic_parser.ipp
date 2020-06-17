@@ -672,6 +672,7 @@ parse_chunk_header(char const*& p0,
                 *body_limit_ -= size;
             }
             auto const start = p;
+	    if (accept_boto2_chunk_headers() && p == eol - 3 && *p == ';') ++p; else
             parse_chunk_extensions(p, pend, ec);
             if(ec)
                 return;
@@ -715,6 +716,7 @@ parse_chunk_header(char const*& p0,
     }
 
     auto const start = p;
+    if (accept_boto2_chunk_headers() && p == eol - 3 && *p == ';') ++p; else
     parse_chunk_extensions(p, pend, ec);
     if(ec)
         return;
